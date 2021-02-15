@@ -1,0 +1,136 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajout Patient
+{% endblock %}
+
+{% block body %}
+	<style>
+    .example-wrapper {font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+    .kotitle { margin-left: 36% }
+	</style>
+	<div class="example-wrapper container-small">
+		<h2 class="kotitle">Ajouter un Patient</h2>
+    <div style="margin-left: 35%">
+        <input type="button" class="btn btn-primary" style="font-size: 150%" value="Scan par numero de la carte" id="scanCard"/>
+        <input type="button" class="btn btn-primary" style="font-size: 150%" value="Scan par camera de la carte" id="scanNum" hidden/>
+    </div>
+    </br>
+		<div class="alert alert-success" style="margin-left: 11%; margin-right: 11%; font-size: 150%; text-align: center" role="alert" id="success_add" hidden>
+			<p id="success add">Le patient a été ajouté</p>
+		</div>
+		<div class="alert alert-danger" style="margin-left: 11%; margin-right: 11%; font-size: 150%; text-align: center" role="alert" id="error_add" hidden>
+    </div>
+		<div id="scanCardView">
+			<canvas id="canvasElement"></canvas>
+			<video id="lectorElement" hidden></video>
+		</div>
+		<div id="scanNumView" height="50%" style=" margin-left: 24%; margin-right: 24%; font-size:200%" hidden>
+			<label for="cardNumber">Numbero de carte</label>
+				<input type="text" placeholder="xxxxxxxx" id="carNumber"class="form-control" style="font-size: 100%"/>
+      </br>
+			<input type="button" value="Ajouter" id="addPatient" class="btn btn-primary"style="margin-left:30%; font-size: 100%"/>
+		</div>
+	</div>
+{% endblock %}
+{% block javascripts %}
+	<script type="module">
+import QrScanner from "../assets/scripts/qr-scanner.js";
+
+QrScanner.WORKER_PATH = '../assets/scripts/qr-scanner-worker.min.js';
+let lectorElem = document.getElementById("lectorElement");
+let formCard = document.getElementById("addPatient");
+let cardNumbers = document.getElementById("carNumber");
+let scan1 = document.getElementById("scanCard");
+let scan2 = document.getElementById("scanNum");
+scan1.onclick = change1;
+scan2.onclick = change2
+formCard.onclick = addPatientForm;
+if (detectMob() === true) {
+  lectorElem.width = Math.round((window.screen.width * 250) / 100);
+  lectorElem.height = Math.round((window.screen.height * 180) / 100);
+} else {
+  lectorElem.width = Math.round((window.screen.width * 50) / 100);
+  lectorElem.height = Math.round((window.screen.height * 50) / 100);
+}
+let successElem = document.getElementById("success_add");
+let errorElem = document.getElementById("error_add");
+let canElem = document.getElementById("canvasElement");
+let qrScanner = new QrScanner(lectorElem, scanSuccess);
+
+let qrcode = new QrCodeView(canElem, lectorElem);
+startLector();
+lectorElem.addEventListener("play", function () {
+  let self = this;
+  (function loop() {
+    if (!self.paused && !self.ended) {
+      qrcode.startDraw();
+      setTimeout(loop, 1000 / 30);
+    }
+  })();
+});
+
+function addPatientForm() {
+  let valu = cardNumbers.value;
+  let tmp = "/" + valu
+  scanSuccess(tmp);
+}
+
+function startLector() {
+  qrScanner.start();
+}
+
+function stopLector() {
+  qrScanner.pause();
+}
+
+function scanSuccess(result) {
+  let tmp = result.split('/');
+  axios.post(defaultaddr + "/init", {
+    data: {
+      num: tmp[tmp.length - 1]
+    }
+  }).then((success) => {
+    successElem.hidden = false;
+    errorElem.hidden = true;
+    errorElem.innerHTML = "";
+  }, (error) => {
+    let err = error.response.data.errors;
+    successElem.hidden = true;
+    let c = -1;
+    if (errorElem.children.length > 0) {
+      while (errorElem.children[++c])
+        errorElem.children[c].remove();
+
+      c = -1
+    }
+    while (err[++c]) {
+      let elem = document.createElement("p");
+      elem.innerText = err[c]
+      errorElem.append(elem);
+    }
+    cardNumbers.value = tmp[tmp.length -1];
+    errorElem.hidden = false;
+    change1();
+  })
+}
+function change1()
+{
+    document.getElementById('scanNum').hidden = false;
+    document.getElementById('scanNumView').hidden = false;
+    document.getElementById('scanCard').hidden = true;
+    document.getElementById('scanCardView').hidden = true;
+    stopLector();
+}
+
+function change2()
+{
+    document.getElementById('scanCard').hidden = false;
+    document.getElementById('scanCardView').hidden = false;
+    document.getElementById('scanNum').hidden = true;
+    document.getElementById('scanNumView').hidden = true;
+    startLector();
+}
+	</script>
+
+{% endblock %}

@@ -1,0 +1,239 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajout de resultat{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper {font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+    .kotitle { margin-left: 38% }
+</style>
+
+<div class="example-wrapper">
+
+    <h2 class="kotitle">Ajouter un resultat</h2>
+    {% if success is defined and success | length > 0 %}
+        <div class="alert alert-success" role="alert">
+            {{ success }}
+        </div>
+    {% endif %}
+    {% if errors is defined %}
+                <div class="alert alert-danger" role="alert">
+                {% for error in errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+                </div>
+    {% endif %}
+    <div style="margin-left: 35%">
+        <input type="button" class="btn btn-primary" style="font-size: 150%" value="Scan par numero de la carte" id="scanCard"/>
+        <input type="button" class="btn btn-primary" style="font-size: 150%" value="Scan par camera de la carte" id="scanNum" hidden/>
+    </div>
+    </br>
+    {% if errors is defined %}
+    <div id="scanCardView" hidden>
+    {% else %}
+    <div id="scanCardView">
+    {% endif %}
+        <div>
+            <canvas id="canvasElement"></canvas>
+            <video id="lectorElement"  width="100%" height="100%" hidden>
+            </video>
+        </div>
+        </br>
+        <p id="cameraError" style="text-align:center" hidden> Caméra introuvable merci de recharger la page ou d'activer votre caméra dans les options du navigateur.</p>
+    </div>
+
+    {% if errors is defined %}
+    <div id="scanNumView" style="margin-left: 21%; margin-right: 21%;font-size: 200%">
+    {% else %}
+    <div id="scanNumView" style="margin-left: 21%; margin-right: 21%;font-size: 200%" hidden>
+    {% endif %}
+    <form action="" method="POST" id="formCard">
+        <div class="form-group" id="set_by_number">
+            <label for="cardNumber">Numero de la carte</label>
+            {% if cardNumber is defined and cardNumber | length > 0 %}
+                <input type="text" class="form-control" name="cardNumber" id="cardNumber" aria-describedby="cardNumberlHelp" value={{cardNumber}}>
+            {% else %}
+                <input type="text" class="form-control" name="cardNumber" id="cardNumber" aria-describedby="cardNumberlHelp" placeholder="000000000">
+            {% endif %}
+            <small id="cardNumberHelp" class="form-text text-muted">Numéro a 8 chiffre inscrit sur la Carte xxxx-xxxx</small>
+            {% if errors.cardNumber is defined %}
+                <div class="alert alert-danger" role="alert">
+                    {{ errors.cardNumber }}
+                </div>
+            {% endif %}
+        </div>
+        </br>
+        <div class="container row">
+            <div class="col form-check">
+                <input class="form-check-input" type="radio" name="resultOptions" id="resultYes" value="yes">
+                <label class="form-check-label" for="resultYes">Oui</label>
+            </div>
+            <div class="col form-check">
+                <input class="form-check-input" type="radio" name="resultOptions" id="resultUnd" value="undefined">
+                <label class="form-check-label" for="resultUnd">Test non concluant</label>
+            </div>
+            <div class="col form-check">
+                 <input class="form-check-input" type="radio" name="resultOptions" id="resultNo" value="no">
+                 <label class="form-check-label" for="resultNo">Non</label>
+            </div>
+        </div>
+        <div class="form-group" hidden>
+            <input type="text" name="location" id="locationTest"/>
+        </div>
+       <button type="submit" class="btn btn-primary" style="font-size: 100%">Envoyer</button>
+    </form>
+    <div>
+</div>
+{% endblock %}
+{% block javascripts %}
+<script type="module">
+    import QrScanner from "../assets/scripts/qr-scanner.js";
+
+    QrScanner.WORKER_PATH = '../assets/scripts/qr-scanner-worker.min.js';
+    let lectorElem = document.getElementById("lectorElement");
+    if (detectMob() === true)
+    {
+        lectorElem.width = Math.round((window.screen.width * 250) / 100);
+        lectorElem.height = Math.round((window.screen.height * 180) / 100);
+    }
+    else
+    {
+        lectorElem.width = Math.round((window.screen.width * 50) / 100);
+        lectorElem.height = Math.round((window.screen.height * 50) / 100);
+    }
+    let qrScanner = new QrScanner(lectorElem, scanSuccess);
+    let cameraErrorElem = document.getElementById("cameraError");
+    let numElem = document.getElementById("cardNumber");
+    let location = document.getElementById("locationTest");
+    let formCard = document.getElementById("formCard");
+    let canElem = document.getElementById("canvasElement");
+    let qrcode = new QrCodeView(canElem, lectorElem);
+    let scan1 = document.getElementById("scanCard");
+    let scan2 = document.getElementById("scanNum");
+    scan1.onclick = change1;
+    scan2.onclick = change2;
+    lectorElem.addEventListener("play", function ()
+    {
+        let self = this;
+        (function loop()
+        {
+            if (!self.paused && !self.ended)
+            {
+                qrcode.startDraw();
+                setTimeout(loop, 1000 / 30);
+            }
+        })();
+    });
+    formCard.addEventListener("submit", (function (event)
+    {
+        event.preventDefault();
+        let dataForm = serialize(event.target);
+        let messageConfirm = "Etes vous sur du resultat ";
+        if (dataForm["resultOptions"] === "yes")
+            messageConfirm = messageConfirm + "Oui ";
+        else if (dataForm["resultOptions"] === "no")
+            messageConfirm = messageConfirm + "Non ";
+        else if (dataForm["resultOptions"] === "undefined")
+            messageConfirm = messageConfirm + "test non concluant ";
+        messageConfirm = messageConfirm + " pour la carte numero " + dataForm["cardNumber"];
+        let confirmation = confirm(messageConfirm)
+        if (confirm === true)
+            event.submit();
+        console.log(event.target.submit());
+    }));
+    let options = {
+        enableHighAccuracy: false,
+        timeout: 5000,
+    };
+    if (lectorElem !== undefined)
+        startLector();
+    function startLector()
+    {
+        qrScanner.start().then(
+            () => {
+                if (cameraErrorElem.hidden === false)
+                {
+                    canElem.hidden = false;
+                    cameraErrorElem.hidden = true;
+                    reloadScan.hiddent = true;
+                }
+            }
+        ).catch((err) =>{
+            cameraErrorElem.hidden = false;
+            qrScanner.destroy();
+            qrScanner = null;
+            canElem.hidden = true;
+            console.log("error");
+            console.log(err)
+        });
+    }
+
+    function stopLector()
+    {
+        qrScanner.pause();
+    }
+
+    function scanSuccess(result)
+    {
+        let tmp = result.split('/');
+        numElem.value = tmp[tmp.length - 1];
+        change1();
+    }
+
+/*!
+ * Serialize all form data into a query string
+ * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
+ * @param  {Node}   form The form to serialize
+ * @return {String}      The serialized form data
+ */
+var serialize = function (form) {
+
+	// Setup our serialized data
+	var serialized = [];
+
+	// Loop through each field in the form
+	for (var i = 0; i < form.elements.length; i++) {
+
+		var field = form.elements[i];
+
+		// Don't serialize fields without a name, submits, buttons, file and reset inputs, and disabled fields
+		if (!field.name || field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') continue;
+
+		// If a multi-select, get all selections
+		if (field.type === 'select-multiple') {
+			for (var n = 0; n < field.options.length; n++) {
+				if (!field.options[n].selected) continue;
+				serialized[field.name] = field.options[n].value;
+			}
+		}
+
+		// Convert field data to a query string
+		else if ((field.type !== 'checkbox' && field.type !== 'radio') || field.checked) {
+			serialized[field.name] = field.value;
+		}
+	}
+
+	return serialized;
+
+};
+
+function change1()
+{
+    document.getElementById('scanNum').hidden = false;
+    document.getElementById('scanNumView').hidden = false;
+    document.getElementById('scanCard').hidden = true;
+    document.getElementById('scanCardView').hidden = true;
+    stopLector();
+}
+
+function change2()
+{
+    document.getElementById('scanCard').hidden = false;
+    document.getElementById('scanCardView').hidden = false;
+    document.getElementById('scanNum').hidden = true;
+    document.getElementById('scanNumView').hidden = true;
+    startLector();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <script src="../assets/scripts/jsPDF.js"></script>
+        <title>Cartes PDF</title>
+    </head>
+    <body>
+      <pre style="font-size: 150%; margin-left: 45%;">Patientez Pendant la creation du PDF</pre>
+      <div hidden>
+        {% set c = 0 %}
+        {% for token in tokens %}
+          <div id={{"item_" ~ c }} >
+            <img src={{ token.qrcode }} />
+            <p > {{ token.number }} </p>
+          </div>
+          {% set c = c + 1 %}
+        {% endfor %}
+        </div>
+    </body>
+    <script>
+    document.addEventListener("DOMContentLoaded", async function()
+    {
+        let docPDF = new jsPDF(
+          {
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4',
+            putOnlyUsedFonts:true,
+            floatPrecision: 16 // or "smart", default is 16
+            }
+        );
+        docPDF.setFontSize(12);
+        let c = -1;
+        let elem = document.getElementById("item_" + ++c);
+        let imgSize = 30;
+        let block = {height: 79, width: 34, marginx: 2, marginy: 2};
+        let currentx = 0;
+        let currenty = 10;
+        let line = 0;
+        let batch = 5;
+        let total = 18;
+        while (elem)
+        {
+          docPDF.line(currentx + block.marginx, currenty + block.marginy, currentx + block.width, currenty + block.marginy);
+          docPDF.line(currentx + block.marginx, currenty + block.marginy, currentx + block.marginx, currenty + block.height);
+          docPDF.line(currentx + (2 * block.marginx), currenty + Math.round(block.height / 2), currentx + block.width - 3, currenty + Math.round(block.height / 2));
+          docPDF.line(currentx + block.width, currenty + block.marginy, currentx + block.width, currenty + block.height);
+          docPDF.line(currentx + block.marginx, currenty + block.height, currentx + block.width, currenty + block.height);
+          docPDF.addImage(elem.children[0], "PNG", currentx + 3.5, currenty + 3, 30, 30);
+          docPDF.addImage(elem.children[0], "PNG", currentx + 3.5, currenty + 3 + Math.round(block.height / 2), 30, 30);
+          docPDF.text(elem.children[1].innerText, currentx + 10, currenty + imgSize + 7);
+          docPDF.text(elem.children[1].innerText, currentx + 10, currenty + (2 * imgSize) + 17);
+          if (line < batch)
+          {
+            currentx = currentx + block.width;
+            line++;
+          }
+          else
+          {
+            line = 0;
+            currentx = 0;
+            currenty = currenty + block.height + 10;
+          }
+          elem = document.getElementById("item_" + ++c);
+          if (c % total === 0)
+          {
+            docPDF.insertPage(docPDF);
+            currentx = 0;
+            currenty = 10;
+          }
+        }
+        docPDF.save();
+    });
+    </script>
+</html>

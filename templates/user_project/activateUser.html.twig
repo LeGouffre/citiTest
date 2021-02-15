@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajout de resultat{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+</style>
+
+<div class="example-wrapper">
+    {% if error is defined %}
+    <div class="alert alert-danger">
+        <p>{{ error }}</p>
+    </div>
+    {% endif %}
+    
+    {% if success is defined %}
+        {% if errorPasswd is defined %}
+        <div class="alert alert-danger">
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+    <h2>Votre compte a ete activer pour changer de mot de passe veuillez remplire les champs suivant</h2>
+    <form action="https://citi-test.xyz/addUser/changePasswd"method="POST">
+        <label for="password">nouveau mot de pass</label>
+        <input type="password" name="password" id="password" />
+        <br />
+        <label for="confirm_password">Confirmation du mot de passe</label>
+        <input type="password" name="confirm_password" id="confirm_password"/>
+        <br />
+        <input type="submit" value="modifier">
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

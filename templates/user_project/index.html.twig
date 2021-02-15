@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajout d'utilisateurs!{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+</style>
+
+<div class="example-wrapper">
+    {% if success is defined %}
+    <div class="alert alert-success">
+        <p>{{ success }}</p>
+    </div>
+    {% elseif errors is defined %}
+    <div class="alert alert-danger">
+        {% for error in errors %}
+            <p>{{ error }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <input type="button" id="dlTestFile" value="Télécharger le fichier test" />
+    <form method="post" enctype="multipart/form-data" >
+        <input type="file" id="uplTestFile" value="importer des utilisateurs" name="usersFile"/>
+        <input type="submit" id="submitFile" value="importer" />
+    </form>
+    <div class='alert alert-warning'>
+        <p>Merci de ne pas utiliser les caractere suivant: ',' et ';'</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+let dlTestFileElem = document.getElementById("dlTestFile");
+let uplTestFileElem = document.getElementById("uplTestFile");
+let testFile ="data:text/csv;charset=utf-8," 
+let testElem = [
+    ["email", "nom", "prénom", "lieu de campagne"],
+    ["exemple", "", "", ""],
+    ["", "", "", "28 bis bd. Jean Baptiste 06000 Nice"],
+    ["tony@test.com", "tony", "cerebos"],
+    ["tony@test.com", "marti", "cerebos"],
+    ["gille@test.com", "gille", "kingd"],
+]
+
+dlTestFileElem.onclick = dlTestFile;
+uplTestFileElem.onclick = sendCsvFile;
+
+testElem.forEach(function(rowArray) {
+    let row = rowArray.join(";");
+    testFile += row + "\n";
+});
+
+function dlTestFile()
+{
+    var encodedUri = encodeURI(testFile);
+    window.open(encodedUri);
+}
+function sendCsvFile()
+{
+
+}
+</script>
+{% endblock %}

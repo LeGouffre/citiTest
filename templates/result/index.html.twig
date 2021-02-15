@@ -1,0 +1,226 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Resultat{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper {font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+    .kotitle { margin-left: 36% }
+</style>
+
+<div class="example-wrapper container-small">
+    <h2 class="kotitle"> Consultation du resultat</h2>
+    {% if errors is defined %}
+        <div style="margin-left: 20%; margin-right: 20%; text-align:center; font-size: 150%" class="alert alert-danger" role="alert">
+            <p> {{ errors }} </p>
+        </div>
+    {% endif %}
+    <div style="margin-left: 35%">
+    {% if card is defined %}
+    <input  class="btn btn-primary" style="font-size: 150%" type="button" value="Scan par numero de la carte" id="result_by_number" hidden />
+    <input class="btn btn-primary" style="font-size: 150%" type="button" value="Scan par camera de la carte" id="result_by_scan"/>
+    </div>
+    </br>
+    <div id="scanResult" hidden>
+    {% else %}
+    <input class="btn btn-primary" style="font-size: 150%" type="button" value="Scan par numero de la carte" id="result_by_number"/>
+    <input  class="btn btn-primary" style="font-size: 150%" type="button" value="Scan par camera de la carte" id="result_by_scan" hidden/>
+    </div>
+    </br>
+    <div id="scanResult">
+    {% endif %}
+        <div>
+            <canvas id="canvasElement"></canvas>
+            <video id="lectorElement" width="100%" height="100%" hidden>
+            </video>
+        </div>
+        <p id="cameraError" hidden>Camréa introuvable merci de recharger la page ou d'activer votre caméra dans les options du navigateur.</p>
+    </div>
+
+    {% if card is defined %}
+        <div id="numberResutl" style="font-size: 200%">
+    {% else %}
+        <div id="numberResutl"  style="font-size: 200%" hidden>
+    {% endif %}
+        <form id="formSend" style=" margin-left: 21%; margin-right: 21%">
+            <div class="form-group">
+                <label for="cardNumber">Numéro de la carte</label>
+                {% if card.number is defined and card.number | length > 0 %}
+                    <input type="text" class="form-control" style="size: 150%" name="cardNumber" id="cardNumber" aria-describedby="cardNumberlHelp" value={{card.number}} />
+                {% else %}
+                    <input type="text" class="form-control" style="font-size: 150%" name="cardNumber" id="cardNumber" aria-describedby="cardNumberlHelp" placeholder="xxxxxxxx" />
+                {% endif %}
+                <small id="cardNumberHelp" class="form-text text-muted">Numéro a 8 chiffre inscrit sur la Carte xxxx-xxxx</small>
+            </div>
+            <button style="font-size: 100%" type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+
+
+    {% if card is defined %}
+	</br>
+	<div class="alert alert-success" style="margin-left: 30%; margin-right:30%;font-size:150%">
+        {% if card.result is defined and card.result == "yes" %}
+            <p style="color: red;" id="testResult">Résultat positif</p>
+        {% elseif card.result is defined and  card.result == "no" %}
+            <p id="testResult">Résultat négatif</p>
+       {% elseif card.result is defined and  card.result == "undefined" %}
+            <p id="testResult">Le test n'a pas été concluant.</p>
+            <br>
+            <p>Nous vous invitons a proceder a un autre test.</p>
+        {% else %}
+            <p>Résultat indisponible pour le moment</p>
+        {% endif %}
+        {% if card.result is defined %}
+            <p id="testDate">Fait le {{ card.updateAt|date('d-m-Y H:m') }}</p>
+            <p id="testLocation">a {{ card.location }}</p>
+            <input type="button" value="exporter au format PDF" id="exportAsPDF" class="btn btn-primary" style="font-size: 100%;" />
+        {% endif %}
+	</div>
+    {% endif %}
+</div>
+
+<img id="mainLogo" src="../assets/logo_citi.png"  hidden/>
+{% endblock %}
+{% block javascripts %}
+<script type="module">
+    import QrScanner from "../assets/scripts/qr-scanner.js";
+    QrScanner.WORKER_PATH = '../assets/scripts/qr-scanner-worker.min.js';
+    let lectorElem = document.getElementById("lectorElement");
+    if (detectMob() === true)
+    {
+        lectorElem.width = Math.round((window.screen.width * 250) / 100);
+        lectorElem.height = Math.round((window.screen.height * 180) / 100);
+    }
+    else
+    {
+        lectorElem.width = Math.round((window.screen.width * 50) / 100);
+        lectorElem.height = Math.round((window.screen.height * 50) / 100);
+    }
+    let form = document.getElementById("formSend");
+    let formsT = [
+            {id: "result_by_number", target: "numberResutl", actionStart: null, actionStop: null},
+            {id: "result_by_scan", target: "scanResult", actionStart: startLector, actionStop: stopLector}
+        ];
+    let canElem = document.getElementById("canvasElement");
+    let qrcode = new QrCodeView(canElem, lectorElem);
+    let qrScanner = new QrScanner(lectorElem, scanSuccess);
+    let cameraErrorElem = document.getElementById("cameraError");
+
+    if (document.getElementById("exportAsPDF"))
+    {
+        document.getElementById("exportAsPDF").onclick = exportAsPdf;
+    }
+    lectorElem.addEventListener("play", function ()
+    {
+        let self = this;
+        (function loop()
+        {
+            if (!self.paused && !self.ended)
+            {
+                qrcode.startDraw();
+                setTimeout(loop, 1000 / 30);
+            }
+        })();
+    });
+
+    form.onsubmit = sendForm;
+    init();
+    if (document.getElementById("scanResult").hidden === false)
+        startLector();
+    function startLector()
+    {
+        qrScanner.start().then(
+            () => {
+                if (cameraErrorElem.hidden === false)
+                {
+                    cameraErrorElem.hidden = true;
+                    changeScan({target: {id: "result_by_number"}})
+                }
+            }
+        ).catch(() =>{
+            cameraErrorElem.hidden = false;
+            changeScan({target: {id: "result_by_number"}});
+        });
+    }
+
+    function stopLector()
+    {
+        qrScanner.pause();
+    }
+    function exportAsPdf()
+    {
+        let file = new jsPDF();
+        let coordonate = [10, 10];
+        let tinfo = ["Result", "Date", "Location"];
+        let result = document.getElementById("testResult").innerText;
+        let date = document.getElementById("testDate").innerText;
+        let location = document.getElementById("testLocation").innerText;
+        let numero = window.location.href.split("/");
+        numero = numero[numero.length - 1];
+        file.addImage(document.getElementById("mainLogo"), "PNG", 10, 10);
+        file.text("Le test numero " + numero, 10, 80);
+	file.text("Resultat: " + result, 10, 90);
+        file.text(date, 10, 100);
+        file.text(location, 10, 110);
+        file.save("test.pdf");
+    }
+
+    function scanSuccess(result)
+    {
+        qrScanner.destroy();
+        let tmp = result.split('/');
+        window.location.replace(defaultaddr + "/result/" + tmp[tmp.length - 1]);
+    }
+
+    function changeScan(event)
+    {
+        let c = -1;
+        while (formsT[++c])
+        {
+            if (formsT[c].id === event.target.id)
+            {
+                document.getElementById(formsT[c].target).hidden = false;
+                document.getElementById(formsT[c].id).hidden = true;
+                if (formsT[c].actionStart !== null)
+                    formsT[c].actionStart();
+            }
+            else
+            {
+                document.getElementById(formsT[c].id).hidden = false;
+                document.getElementById(formsT[c].target).hidden = true;
+                if (formsT[c].actionStop !== null)
+                    formsT[c].actionStop();
+            }
+        }
+    }
+
+    function sendForm(event)
+    {
+        event.preventDefault();
+        let number = event.target[0].value;
+        let tmp = event.target.action.split('/');
+        if (parseInt(tmp[tmp.length - 1]) > 0)
+            tmp.pop();
+        if (tmp[tmp.length - 1] === "")
+            tmp[tmp.length - 1] = "result";
+        window.location = tmp.join("/") + "/" + number;
+
+    }
+
+    function init()
+    {
+        let c = -1;
+        while (formsT[++c])
+        {
+            document.getElementById(formsT[c].id).onclick = changeScan;
+        }
+    }
+    function detectMob() {
+        return toMatch.some((toMatchItem) => {
+            return navigator.userAgent.match(toMatchItem);
+        });
+    }
+</script>
+{% endblock %}

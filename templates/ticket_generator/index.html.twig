@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Card{% endblock %}
+
+{% block body %}
+<div style="margin-left: 25%; font-size: 150%">
+    <h3 style="margin-left: 15%">Exporter les numéros</h3>
+    <form id="form" >
+        <div  style=" margin-left: 2%; margin-right: 24%; font-size: 150%">
+        <label for="number">Nombre de numéro voulue :</label>
+        </br>
+        <input type="number" min="1" max="1000" name="number" class="form-control" style="font-size: 150%"/>
+        </br>
+        <input type="submit" class="btn btn-primary"style="margin-left:30%; font-size: 100%">
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+
+{% block javascripts %}
+<script type="module">
+    let form = document.getElementById("form");
+    form.onsubmit = function (event)
+    {
+        event.preventDefault();
+        window.location.replace(defaultaddr + "/generator/" + event.target.children[0].children[2].value);
+    }
+</script>
+ {% endblock %}
